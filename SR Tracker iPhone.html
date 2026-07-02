@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SR Tracker">
+<meta name="theme-color" content="#0F5C56">
+<link rel="manifest" href="data:application/json,{%22name%22:%22Paraclinical%20Spaced%20Repetition%20Tracker%22,%22short_name%22:%22SR%20Tracker%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%23FFFFFF%22,%22theme_color%22:%22%230F5C56%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%20192%20192%27%3E%3Crect%20fill=%27%230F5C56%27%20width=%27192%27%20height=%27192%27/%3E%3Ctext%20x=%2750%25%27%20y=%2750%25%27%20dominant-baseline=%27middle%27%20text-anchor=%27middle%27%20font-size=%2780%27%20font-weight=%27bold%27%20fill=%27white%27%20font-family=%27system-ui%27%3ESR%3C/text%3E%3C/svg%3E%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]}">
+<title>Paraclinical SR Tracker</title>
+<style>
+  :root{
+    --bg:#F5F7F8; --surface:#FFFFFF; --border:#E2E6EA; --border-strong:#CCD3D9;
+    --ink:#1A2332; --ink-muted:#5D6A78; --ink-faint:#8E99A5;
+    --teal:#0F5C56; --teal-soft:#E3EFEE; --teal-dark:#0B433F;
+    --red:#AE3A29; --red-soft:#F8E8E5;
+    --green:#3E7D4F; --green-soft:#E7F1E8;
+    --slate:#697583; --slate-soft:#ECEFF2;
+    --t5:#8B5A3C; --t5-soft:#F3EAE2; --t6:#2F6690; --t6-soft:#E3ECF3;
+    --t7:#5C7A3B; --t7-soft:#E8EEE0; --t8:#8A3B5C; --t8-soft:#F2E4EC;
+    --mono:ui-monospace,'SF Mono','Cascadia Mono','Roboto Mono',Consolas,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --r:4px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+    padding-top:max(16px, env(safe-area-inset-top));
+    padding-bottom:max(16px, env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:20px 18px 60px;}
+  a{color:inherit;}
+  button{font-family:inherit;}
+  :focus-visible{outline:2px solid var(--teal); outline-offset:2px; border-radius:2px;}
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+
+  header.chart-header{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:18px;}
+  .chart-header-top{display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;}
+  .eyebrow{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--teal);}
+  .chart-date{font-family:var(--mono); font-size:12px; color:var(--ink-muted); white-space:nowrap;}
+  h1{font-size:26px; margin:4px 0 2px; letter-spacing:-.01em; font-weight:800;}
+  .subtitle{margin:0; color:var(--ink-muted); font-size:13.5px;}
+
+  .vitals{
+    display:flex; background:var(--surface); border:1px solid var(--border-strong);
+    border-radius:var(--r); overflow:hidden; margin-bottom:16px; flex-wrap:wrap;
+  }
+  .vital{
+    flex:1 1 0; min-width:88px; padding:12px 10px; text-align:center; cursor:pointer;
+    border-right:1px solid var(--border); background:transparent; border-top:none; border-bottom:none; border-left:none;
+    display:flex; flex-direction:column; gap:3px; align-items:center;
+  }
+  .vital:last-of-type{border-right:none;}
+  .vital:hover{background:var(--slate-soft);}
+  .vital-value{font-family:var(--mono); font-size:22px; font-weight:700; line-height:1;}
+  .vital-label{font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-muted); font-weight:600;}
+  .vital[data-status="due"].active{background:var(--red-soft);} .vital[data-status="due"] .vital-value{color:var(--red);}
+  .vital[data-status="new"].active{background:var(--slate-soft);} .vital[data-status="new"] .vital-value{color:var(--slate);}
+  .vital[data-status="upcoming"].active{background:var(--teal-soft);} .vital[data-status="upcoming"] .vital-value{color:var(--teal);}
+  .vital[data-status="mastered"].active{background:var(--green-soft);} .vital[data-status="mastered"] .vital-value{color:var(--green);}
+  .vital-progress{flex:1.4 1 0; cursor:default; justify-content:center;}
+  .vital-progress:hover{background:transparent;}
+  .progress-track{width:100%; height:6px; background:var(--slate-soft); border-radius:3px; overflow:hidden; margin-top:2px;}
+  .progress-fill{height:100%; background:var(--teal); width:0%; transition:width .25s ease;}
+  .progress-label{font-family:var(--mono); font-size:11px; color:var(--ink-muted);}
+
+  .controls{margin-bottom:6px; display:flex; flex-direction:column; gap:10px;}
+  #searchBox{
+    width:100%; padding:9px 12px; border:1px solid var(--border-strong); border-radius:var(--r);
+    font-size:14px; background:var(--surface); color:var(--ink);
+  }
+  .filter-row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .pill-group{display:flex; gap:6px; flex-wrap:wrap;}
+  .pill{
+    padding:6px 11px; border:1px solid var(--border-strong); background:var(--surface); color:var(--ink-muted);
+    border-radius:14px; font-size:12.5px; font-weight:600; cursor:pointer;
+  }
+  .pill:hover{border-color:var(--ink-muted); color:var(--ink);}
+  .pill.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+  select#subjectFilter{
+    padding:6px 10px; border:1px solid var(--border-strong); border-radius:var(--r); background:var(--surface);
+    font-size:12.5px; color:var(--ink); font-weight:600;
+  }
+  .spacer{flex:1;}
+  .btn-add{
+    padding:7px 13px; border:1px solid var(--teal); background:var(--teal); color:#fff;
+    border-radius:var(--r); font-size:12.5px; font-weight:700; cursor:pointer;
+  }
+  .btn-add:hover{background:var(--teal-dark);}
+
+  .add-form{
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--r);
+    padding:16px; margin:12px 0 18px;
+  }
+  .add-form.hidden{display:none;}
+  .add-form h2{margin:0 0 12px; font-size:15px;}
+  .add-form-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 12px;}
+  .add-form-grid label{display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--ink-muted);}
+  .add-form-grid input, .add-form-grid select{
+    padding:8px 10px; border:1px solid var(--border-strong); border-radius:var(--r); font-size:14px; font-family:inherit; color:var(--ink);
+  }
+  .add-form-actions{display:flex; gap:8px; margin-top:14px;}
+  .btn-primary{padding:8px 16px; background:var(--teal); color:#fff; border:1px solid var(--teal); border-radius:var(--r); font-weight:700; font-size:13px; cursor:pointer;}
+  .btn-primary:hover{background:var(--teal-dark);}
+  .btn-ghost{padding:8px 16px; background:transparent; color:var(--ink-muted); border:1px solid var(--border-strong); border-radius:var(--r); font-weight:600; font-size:13px; cursor:pointer;}
+  .btn-ghost:hover{color:var(--ink); border-color:var(--ink-muted);}
+  .form-error{color:var(--red); font-size:12px; margin-top:8px; display:none;}
+  .form-error.show{display:block;}
+
+  main#list{display:flex; flex-direction:column; gap:10px;}
+  .empty-state{
+    padding:32px 16px; text-align:center; color:var(--ink-muted); background:var(--surface);
+    border:1px dashed var(--border-strong); border-radius:var(--r); font-size:14px;
+  }
+  details.term-section{
+    background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--ink);
+    border-radius:var(--r); overflow:hidden;
+  }
+  details.term-section.term-5{border-left-color:var(--t5);}
+  details.term-section.term-6{border-left-color:var(--t6);}
+  details.term-section.term-7{border-left-color:var(--t7);}
+  details.term-section.term-8{border-left-color:var(--t8);}
+  details.term-section > summary{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:13px 16px; cursor:pointer; list-style:none; font-weight:800; font-size:15px;
+    flex-wrap:wrap;
+  }
+  details.term-section > summary::-webkit-details-marker{display:none;}
+  .summary-left{display:flex; align-items:center; gap:9px;}
+  .summary-right{display:flex; align-items:center; gap:10px; font-weight:500;}
+  .chevron{display:inline-block; font-size:11px; color:var(--ink-faint); transition:transform .15s ease;}
+  details[open] > summary .chevron{transform:rotate(90deg);}
+  .term-range{font-family:var(--mono); font-size:11.5px; color:var(--ink-muted); font-weight:500;}
+  .term-progress, .subject-progress{font-family:var(--mono); font-size:12.5px; color:var(--ink-muted); font-weight:600;}
+  .shown-note{font-size:11px; color:var(--ink-faint); font-weight:500;}
+  .term-body{padding:0 12px 12px;}
+
+  details.subject-section{border-top:1px solid var(--border); margin-top:0;}
+  details.subject-section:first-child{border-top:none;}
+  details.subject-section > summary{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:10px 6px; cursor:pointer; list-style:none; font-weight:700; font-size:13.5px; color:var(--ink);
+  }
+  details.subject-section > summary::-webkit-details-marker{display:none;}
+  .subject-body{padding:2px 4px 8px;}
+
+  .topic-row{
+    display:flex; justify-content:space-between; align-items:center; gap:14px;
+    padding:9px 8px; border-radius:3px; border-bottom:1px solid var(--border);
+  }
+  .topic-row:last-child{border-bottom:none;}
+  .topic-row:hover{background:var(--slate-soft);}
+  .topic-main{display:flex; flex-direction:column; gap:2px; min-width:0;}
+  .topic-name{font-weight:600; font-size:14px; color:var(--ink);}
+  .topic-meta{font-family:var(--mono); font-size:11px; color:var(--ink-faint);}
+  .topic-status{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .badge{
+    font-size:11px; font-weight:700; letter-spacing:.02em; padding:3px 9px; border-radius:11px;
+    white-space:nowrap; font-family:var(--mono);
+  }
+  .badge-new{background:var(--slate-soft); color:var(--slate);}
+  .badge-due{background:var(--red-soft); color:var(--red);}
+  .badge-upcoming{background:var(--teal-soft); color:var(--teal);}
+  .badge-mastered{background:var(--green-soft); color:var(--green);}
+  .topic-actions{display:flex; align-items:center; gap:8px;}
+  .btn-sm{
+    padding:5px 11px; border-radius:var(--r); font-size:12px; font-weight:700; cursor:pointer; border:1px solid transparent; white-space:nowrap;
+  }
+  .btn-sm.study, .btn-sm.review{background:var(--teal); color:#fff; border-color:var(--teal);}
+  .btn-sm.study:hover, .btn-sm.review:hover{background:var(--teal-dark);}
+  .btn-sm.forgot{background:#fff; color:var(--red); border-color:var(--red-soft);}
+  .btn-sm.forgot:hover{background:var(--red-soft);}
+  .link-action{
+    background:none; border:none; padding:2px 3px; font-size:11.5px; color:var(--ink-faint);
+    cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+  }
+  .link-action:hover{color:var(--ink-muted);}
+  .link-action.remove{color:var(--red); opacity:.7;}
+  .link-action.remove:hover{opacity:1;}
+
+  footer{margin-top:26px; padding-top:16px; border-top:1px solid var(--border-strong); color:var(--ink-muted); font-size:12.5px;}
+  footer p{margin:0 0 10px;}
+  footer strong{color:var(--ink);}
+  .btn-danger-ghost{
+    margin-top:6px; padding:7px 14px; background:transparent; color:var(--red); border:1px solid var(--red-soft);
+    border-radius:var(--r); font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .btn-danger-ghost:hover{background:var(--red-soft);}
+
+  @media (max-width:640px){
+    .topic-row{flex-direction:column; align-items:flex-start; gap:8px;}
+    .topic-status{width:100%; justify-content:space-between;}
+    .add-form-grid{grid-template-columns:1fr;}
+    .vital-value{font-size:18px;}
+    .vital{min-width:70px; padding:10px 6px;}
+    .summary-right{width:100%; justify-content:space-between;}
+    .wrap{padding:12px 12px 60px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="chart-header">
+    <div class="chart-header-top">
+      <span class="eyebrow">Paraclinical Study Record · 46th Batch</span>
+      <span class="chart-date" id="todayDisplay">—</span>
+    </div>
+    <h1>Spaced Repetition Tracker</h1>
+    <p class="subtitle">Terms 05–08 · saves to your phone automatically · review at 1, 3, 7, 14, 30, 60 days</p>
+  </header>
+
+  <section class="vitals" aria-label="Progress summary">
+    <button class="vital" data-status="due" type="button">
+      <span class="vital-value" id="statDue">0</span>
+      <span class="vital-label">Due today</span>
+    </button>
+    <button class="vital" data-status="new" type="button">
+      <span class="vital-value" id="statNew">0</span>
+      <span class="vital-label">New</span>
+    </button>
+    <button class="vital" data-status="upcoming" type="button">
+      <span class="vital-value" id="statUpcoming">0</span>
+      <span class="vital-label">Upcoming</span>
+    </button>
+    <button class="vital" data-status="mastered" type="button">
+      <span class="vital-value" id="statMastered">0</span>
+      <span class="vital-label">Mastered</span>
+    </button>
+    <div class="vital vital-progress">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="progress-label" id="progressLabel">0 / 0 studied</span>
+    </div>
+  </section>
+
+  <section class="controls">
+    <input type="search" id="searchBox" placeholder="Search topics or subjects…" aria-label="Search topics">
+    <div class="filter-row">
+      <div class="pill-group" id="termFilters" role="group" aria-label="Filter by term">
+        <button class="pill active" data-term="all" type="button">All terms</button>
+        <button class="pill" data-term="5" type="button">Term 5</button>
+        <button class="pill" data-term="6" type="button">Term 6</button>
+        <button class="pill" data-term="7" type="button">Term 7</button>
+        <button class="pill" data-term="8" type="button">Term 8</button>
+      </div>
+      <select id="subjectFilter" aria-label="Filter by subject"><option value="all">All subjects</option></select>
+      <span class="spacer"></span>
+      <button class="btn-add" id="toggleAddForm" type="button">+ Add topic</button>
+    </div>
+  </section>
+
+  <section class="add-form hidden" id="addForm">
+    <h2>Add a topic</h2>
+    <div class="add-form-grid">
+      <label>Term
+        <select id="newTerm">
+          <option value="5">Term 5</option>
+          <option value="6">Term 6</option>
+          <option value="7">Term 7</option>
+          <option value="8" selected>Term 8</option>
+        </select>
+      </label>
+      <label>Subject
+        <input type="text" id="newSubject" list="subjectList" placeholder="e.g. Forensic Medicine">
+        <datalist id="subjectList"></datalist>
+      </label>
+      <label>Topic name
+        <input type="text" id="newTopicName" placeholder="e.g. Firearm injuries">
+      </label>
+      <label>Date taught
+        <input type="date" id="newDate">
+      </label>
+    </div>
+    <p class="form-error" id="formError">Please fill in subject, topic name and date.</p>
+    <div class="add-form-actions">
+      <button class="btn-primary" id="saveTopic" type="button">Save topic</button>
+      <button class="btn-ghost" id="cancelAdd" type="button">Cancel</button>
+    </div>
+  </section>
+
+  <main id="list" aria-label="Topic list"></main>
+
+  <footer>
+    <p><strong>How the review schedule works —</strong> mark a topic "studied" once you've covered it. It comes back for review at 1, 3, 7, 14, 30 and 60 days. Each time you confirm "Reviewed", the gap grows; after the 6th confirmed review it's marked Mastered. Tapping "Forgot" resets it back to day 1.</p>
+    <p><strong>All progress saves automatically</strong> to your iPhone. Even if you close the app and reopen it later, your marks and review dates are saved.</p>
+    <p><strong>Not seeing a topic —</strong> Forensic Medicine, self-learning blocks, PPDS placeholders, holidays and assessment weeks aren't listed individually. Use <strong>+ Add topic</strong> to track anything else.</p>
+    <button class="btn-danger-ghost" id="resetAll" type="button">Reset all progress</button>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const RAW_TOPICS = [{"t":5,"s":"Microbiology","n":"Introduction to Microbiology","d":"2025-09-01"},{"t":5,"s":"Microbiology","n":"Morphology and growth of bacteria","d":"2025-09-02"},{"t":5,"s":"Microbiology","n":"Standard precautions & infection control","d":"2025-09-04"},{"t":5,"s":"Microbiology","n":"Bacterial genetics and classification of bacteria","d":"2025-09-08"},{"t":5,"s":"Microbiology","n":"Microbiome","d":"2025-09-12"},{"t":5,"s":"Microbiology","n":"Pathogenesis of bacterial infection","d":"2025-09-15"},{"t":5,"s":"Microbiology","n":"Overview of the immune response and innate immune response","d":"2025-09-16"},{"t":5,"s":"Microbiology","n":"Innate immune response (2)","d":"2025-09-30"},{"t":5,"s":"Microbiology","n":"Antigen, antigen presentation and acquired immune response","d":"2025-10-01"},{"t":5,"s":"Microbiology","n":"Cells and tissues/organs of the immune system and their organization","d":"2025-10-03"},{"t":5,"s":"Microbiology","n":"Cell mediated immune response","d":"2025-10-07"},{"t":5,"s":"Microbiology","n":"Humoral immune response","d":"2025-10-08"},{"t":5,"s":"Microbiology","n":"Immune response to infection","d":"2025-10-09"},{"t":5,"s":"Microbiology","n":"Immunological methods in diagnosis","d":"2025-10-14"},{"t":5,"s":"Microbiology","n":"Active and passive immunization","d":"2025-10-15"},{"t":5,"s":"Microbiology","n":"Hypersensitivity, autoimmunity and immune deficiency in relation to infections","d":"2025-10-21"},{"t":5,"s":"Microbiology","n":"Practical: Standard precautions","d":"2025-09-09"},{"t":5,"s":"Microbiology","n":"Practical: Introducing the microbiology laboratory","d":"2025-09-18"},{"t":5,"s":"Microbiology","n":"Practical: Infection control","d":"2025-09-23"},{"t":5,"s":"Microbiology","n":"Tutorial: General microbiology","d":"2025-10-10"},{"t":5,"s":"Microbiology","n":"Tutorial: Basic and applied immunology","d":"2025-10-30"},{"t":5,"s":"Pathology","n":"Introduction to Pathology","d":"2025-09-02"},{"t":5,"s":"Pathology","n":"Cell injury, cell adaptation, cell death","d":"2025-09-04"},{"t":5,"s":"Pathology","n":"Acute Inflammation","d":"2025-09-16"},{"t":5,"s":"Pathology","n":"Chronic Inflammation","d":"2025-09-19"},{"t":5,"s":"Pathology","n":"Repair, regeneration, wound healing","d":"2025-09-22"},{"t":5,"s":"Pathology","n":"Thrombosis and embolism, infarction","d":"2025-09-24"},{"t":5,"s":"Pathology","n":"Oedema, congestion, exudates and transudates","d":"2025-09-30"},{"t":5,"s":"Pathology","n":"Shock","d":"2025-10-03"},{"t":5,"s":"Pathology","n":"Tutorial: Cell injury, cell adaptation, cell death","d":"2025-10-10"},{"t":5,"s":"Pathology","n":"Tutorial: Inflammation, repair, regeneration and wound healing","d":"2025-10-16"},{"t":5,"s":"Pathology","n":"Tutorial: Thrombosis, embolism, infarction","d":"2025-10-21"},{"t":5,"s":"Pathology","n":"Tutorial: Oedema, congestion, exudates, transudates, shock","d":"2025-10-24"},{"t":5,"s":"Pathology","n":"Practical: Non-neoplastic general pathology","d":"2025-11-04"},{"t":5,"s":"Sociology","n":"Family structure & function","d":"2025-09-03"},{"t":5,"s":"Sociology","n":"Importance of medical sociology in medical practice","d":"2025-09-17"},{"t":5,"s":"Sociology","n":"Health as a social institution","d":"2025-09-18"},{"t":5,"s":"Sociology","n":"Health and social factors","d":"2025-09-25"},{"t":5,"s":"Sociology","n":"Role of the community in health","d":"2025-10-01"},{"t":5,"s":"Sociology","n":"Poverty and health","d":"2025-10-02"},{"t":5,"s":"Sociology","n":"Doctor-patient relationship","d":"2025-10-08"},{"t":5,"s":"Sociology","n":"Issues in doctor-patient relationship","d":"2025-10-09"},{"t":5,"s":"Sociology","n":"Globalization","d":"2025-10-15"},{"t":5,"s":"Sociology","n":"Globalization and health","d":"2025-10-16"},{"t":5,"s":"Paediatrics","n":"Normal growth","d":"2025-09-01"},{"t":5,"s":"Paediatrics","n":"Abnormal growth","d":"2025-09-08"},{"t":5,"s":"Paediatrics","n":"Anthropometry","d":"2025-09-17"},{"t":5,"s":"Paediatrics","n":"Normal development","d":"2025-09-24"},{"t":5,"s":"CPT","n":"Introduction to clinical pharmacology and therapeutics","d":"2025-09-03"},{"t":5,"s":"CPT","n":"Pharmacokinetics","d":"2025-09-04"},{"t":5,"s":"CPT","n":"Clinical pharmacokinetics","d":"2025-09-11"},{"t":5,"s":"CPT","n":"Routes of drug administration","d":"2025-09-12"},{"t":5,"s":"CPT","n":"Pharmacodynamics","d":"2025-09-23"},{"t":5,"s":"CPT","n":"Dose response and drug dosage","d":"2025-10-02"},{"t":5,"s":"CPT","n":"Individual variation and chronic pharmacology","d":"2025-10-07"},{"t":5,"s":"CPT","n":"Paediatric and geriatric pharmacology","d":"2025-10-09"},{"t":5,"s":"CPT","n":"Essential drugs, drug regulation and drug information","d":"2025-10-14"},{"t":5,"s":"CPT","n":"Drug interactions, OTC drugs and therapeutic drug monitoring","d":"2025-10-17"},{"t":5,"s":"CPT","n":"Adverse drug reactions","d":"2025-10-17"},{"t":5,"s":"CPT","n":"Prescription writing, evidence based medicine & compliance","d":"2025-10-27"},{"t":5,"s":"CPT","n":"Drug development and clinical trials","d":"2025-10-28"},{"t":5,"s":"CPT","n":"Demonstration: Routes of administration","d":"2025-09-19"},{"t":5,"s":"CPT","n":"Tutorial: General pharmacology 1 & 2","d":"2025-10-29"},{"t":5,"s":"CPT","n":"SGD: Prescribing in children and elderly","d":"2025-10-30"},{"t":5,"s":"CPT","n":"SGD: Dose calculation and prescription writing","d":"2025-11-04"},{"t":5,"s":"DCFM","n":"Demography 1: Introduction and definitions","d":"2025-09-03"},{"t":5,"s":"DCFM","n":"Demography 2: Population composition and trends","d":"2025-09-04"},{"t":5,"s":"DCFM","n":"Demography 3: Population effects on health and the health system","d":"2025-09-08"},{"t":5,"s":"DCFM","n":"Demography 4: Vital statistics, sources and collection","d":"2025-09-10"},{"t":5,"s":"DCFM","n":"Relationship between patient, family and community","d":"2025-09-10"},{"t":5,"s":"DCFM","n":"Basic epidemiology 1: Concepts in epidemiology","d":"2025-09-15"},{"t":5,"s":"DCFM","n":"Basic epidemiology 2: Measures of morbidity and mortality","d":"2025-09-17"},{"t":5,"s":"DCFM","n":"Basic epidemiology 3: Overview of study designs","d":"2025-09-29"},{"t":5,"s":"DCFM","n":"Basic epidemiology 4: Cross sectional studies","d":"2025-09-30"},{"t":5,"s":"DCFM","n":"Basic epidemiology 5: Case control and cohort studies","d":"2025-10-07"},{"t":5,"s":"DCFM","n":"Basic epidemiology 6: Experimental studies","d":"2025-10-10"},{"t":5,"s":"DCFM","n":"Basic epidemiology 7: Measures of risk","d":"2025-10-16"},{"t":5,"s":"DCFM","n":"Applied epidemiology 1: Principles of surveillance","d":"2025-10-17"},{"t":5,"s":"DCFM","n":"Applied epidemiology 2: Surveillance systems","d":"2025-10-21"},{"t":5,"s":"DCFM","n":"Applied epidemiology 3: Health information systems","d":"2025-10-23"},{"t":5,"s":"DCFM","n":"Applied epidemiology 4: Quality of data","d":"2025-10-27"},{"t":5,"s":"DCFM","n":"Applied epidemiology 5: Death certification","d":"2025-10-31"},{"t":5,"s":"DCFM","n":"Role of the family in health","d":"2025-09-25"},{"t":5,"s":"DCFM","n":"Tutorial 1: Demography","d":"2025-09-26"},{"t":6,"s":"Microbiology","n":"Principles of antimicrobial therapy","d":"2025-11-10"},{"t":6,"s":"Microbiology","n":"Antimicrobial resistance and antimicrobial stewardship","d":"2025-11-11"},{"t":6,"s":"Microbiology","n":"Staphylococci (S. aureus & CoNS)","d":"2025-11-14"},{"t":6,"s":"Microbiology","n":"Streptococcus pyogenes, C, G & Viridans","d":"2025-11-20"},{"t":6,"s":"Microbiology","n":"Streptococcus pneumoniae & Enterococci","d":"2025-11-21"},{"t":6,"s":"Microbiology","n":"Aerobic Gram-positive bacilli","d":"2025-11-24"},{"t":6,"s":"Microbiology","n":"Gram negative cocci","d":"2025-11-27"},{"t":6,"s":"Microbiology","n":"Anaerobes 1","d":"2025-12-02"},{"t":6,"s":"Microbiology","n":"Anaerobes 2","d":"2025-12-03"},{"t":6,"s":"Microbiology","n":"Actinomycetes & Nocardia","d":"2025-12-03"},{"t":6,"s":"Microbiology","n":"Chlamydia & Rickettsia","d":"2025-12-05"},{"t":6,"s":"Microbiology","n":"Mycoplasma & Ureaplasma","d":"2025-12-11"},{"t":6,"s":"Microbiology","n":"Mycobacteria","d":"2025-12-12"},{"t":6,"s":"Microbiology","n":"Spirochaetes 1","d":"2026-01-05"},{"t":6,"s":"Microbiology","n":"Spirochaetes 2","d":"2026-01-08"},{"t":6,"s":"Microbiology","n":"Haemophilus","d":"2026-01-13"},{"t":6,"s":"Microbiology","n":"Legionella, Bordetella & Brucella","d":"2026-01-19"},{"t":6,"s":"Microbiology","n":"Curved Gram-negative bacilli 1","d":"2026-01-27"},{"t":6,"s":"Microbiology","n":"Curved Gram-negative bacilli 2","d":"2026-01-30"},{"t":6,"s":"Microbiology","n":"Tutorial: Antimicrobial resistance","d":"2025-12-08"},{"t":6,"s":"Microbiology","n":"Tutorial: Bacteriology","d":"2026-01-12"},{"t":6,"s":"Pathology","n":"Injury by chemical agents","d":"2025-11-10"},{"t":6,"s":"Pathology","n":"Cancer classification","d":"2025-11-13"},{"t":6,"s":"Pathology","n":"Injury by physical agents","d":"2025-11-14"},{"t":6,"s":"Pathology","n":"Nutritional diseases","d":"2025-11-17"},{"t":6,"s":"Pathology","n":"Molecular basis of cancer","d":"2025-11-20"},{"t":6,"s":"Pathology","n":"Risk factors for cancer","d":"2025-12-11"},{"t":6,"s":"Pathology","n":"Hypersensitivity","d":"2026-01-14"},{"t":6,"s":"Pathology","n":"Autoimmune diseases","d":"2026-01-20"},{"t":6,"s":"Pathology","n":"Cancer spread","d":"2026-01-22"},{"t":6,"s":"Pathology","n":"Immunological aspects of cancer","d":"2026-01-29"},{"t":6,"s":"Pathology","n":"Diagnosis and screening","d":"2026-02-05"},{"t":6,"s":"Pathology","n":"Tutorial: Neoplasia","d":"2026-01-20"},{"t":6,"s":"Pathology","n":"Tutorial: Immunology","d":"2026-02-06"},{"t":6,"s":"Pathology","n":"Practical: Cancer macroscopy","d":"2026-01-27"},{"t":6,"s":"Pathology","n":"Practical: Cancer microscopy","d":"2026-02-03"},{"t":6,"s":"Surgery","n":"Preoperative assessment","d":"2025-11-12"},{"t":6,"s":"Surgery","n":"Post-operative pain management","d":"2025-12-03"},{"t":6,"s":"Surgery","n":"Fluid and electrolyte management","d":"2025-12-11"},{"t":6,"s":"Surgery","n":"Postoperative pyrexia","d":"2026-01-08"},{"t":6,"s":"Surgery","n":"Postoperative respiratory failure","d":"2026-01-22"},{"t":6,"s":"Surgery","n":"Hemorrhage and blood transfusion","d":"2026-01-29"},{"t":6,"s":"Parasitology","n":"Malaria","d":"2025-11-11"},{"t":6,"s":"Parasitology","n":"Tutorial: Malaria","d":"2025-11-21"},{"t":6,"s":"Parasitology","n":"Leishmaniasis","d":"2025-11-27"},{"t":6,"s":"Parasitology","n":"Demonstration: Malaria & Leishmaniasis","d":"2025-12-05"},{"t":6,"s":"Parasitology","n":"Intestinal protozoans: Entamoeba","d":"2026-01-05"},{"t":6,"s":"Parasitology","n":"Intestinal protozoans: Giardiasis","d":"2026-01-09"},{"t":6,"s":"Parasitology","n":"Intestinal protozoans: Cryptosporidiasis & Balantidiasis","d":"2026-01-13"},{"t":6,"s":"Parasitology","n":"Trichomoniasis","d":"2026-01-19"},{"t":6,"s":"Parasitology","n":"Toxoplasmosis","d":"2026-01-22"},{"t":6,"s":"Parasitology","n":"Tutorial: Protozoology revision","d":"2026-01-26"},{"t":6,"s":"CPT","n":"Immune modulators","d":"2025-11-10"},{"t":6,"s":"CPT","n":"Introduction to chemotherapy","d":"2025-11-17"},{"t":6,"s":"CPT","n":"SGD: Antibacterial agents","d":"2025-11-24"},{"t":6,"s":"CPT","n":"Demonstration: Penicillin sensitivity test","d":"2025-12-08"},{"t":6,"s":"CPT","n":"Antimalarial agents","d":"2025-12-09"},{"t":6,"s":"CPT","n":"Antiamoebic agents","d":"2026-01-12"},{"t":6,"s":"CPT","n":"Demonstration: Antiseptics","d":"2026-01-23"},{"t":6,"s":"CPT","n":"Anticancer drugs","d":"2026-01-28"},{"t":6,"s":"Paediatrics","n":"Healthy eating habits","d":"2025-12-10"},{"t":6,"s":"Paediatrics","n":"Malnutrition","d":"2026-01-05"},{"t":6,"s":"Paediatrics","n":"Micronutrient deficiency","d":"2026-01-14"},{"t":6,"s":"Paediatrics","n":"Caloric counting","d":"2026-01-19"},{"t":6,"s":"Paediatrics","n":"Febrile child","d":"2026-01-30"},{"t":6,"s":"Paediatrics","n":"Sepsis & septic shock","d":"2026-02-06"},{"t":6,"s":"DCFM","n":"Nutrition 1","d":"2025-11-11"},{"t":6,"s":"DCFM","n":"Nutrition 2","d":"2025-11-13"},{"t":6,"s":"DCFM","n":"Tutorial 2: Basic epidemiology","d":"2025-11-14"},{"t":6,"s":"DCFM","n":"Nutrition 3","d":"2025-11-18"},{"t":6,"s":"DCFM","n":"Nutrition 4","d":"2025-11-20"},{"t":6,"s":"DCFM","n":"Research methodology workshop","d":"2025-11-25"},{"t":6,"s":"DCFM","n":"Maternal and child health 3 & 4","d":"2025-12-01"},{"t":6,"s":"DCFM","n":"Nutrition 5","d":"2025-12-02"},{"t":6,"s":"DCFM","n":"Maternal and child health 1","d":"2026-01-05"},{"t":6,"s":"DCFM","n":"Maternal and child health 2","d":"2026-01-09"},{"t":6,"s":"DCFM","n":"Maternal and child health 5","d":"2026-01-09"},{"t":6,"s":"Sociology","n":"Understanding the factors of suicide","d":"2025-11-12"},{"t":6,"s":"Sociology","n":"Prevention of suicide","d":"2025-11-19"},{"t":6,"s":"Sociology","n":"Alcoholism and social consequences, gender based violence","d":"2025-12-10"},{"t":6,"s":"Sociology","n":"Domestic violence, gender and health","d":"2026-01-07"},{"t":6,"s":"Sociology","n":"Gender and life expectancy, child abuse","d":"2026-01-14"},{"t":6,"s":"Sociology","n":"Aging and social gerontology, aging and social consequences","d":"2026-01-21"},{"t":6,"s":"Sociology","n":"Disabilities and social consequences","d":"2026-01-28"},{"t":6,"s":"Immunology","n":"SGD: Immunization","d":"2026-01-21"},{"t":6,"s":"PPDS","n":"Emotional intelligence","d":"2025-11-17"},{"t":6,"s":"PPDS","n":"Group dynamic and dynamics of popularity","d":"2026-01-06"},{"t":6,"s":"PPDS","n":"Medical ethics I: Informed consent","d":"2026-01-16"},{"t":6,"s":"PPDS","n":"Developing a social support system for stress management","d":"2026-01-23"},{"t":6,"s":"PPDS","n":"Teamwork","d":"2026-01-30"},{"t":6,"s":"PPDS","n":"Medical ethics II: Privacy and confidentiality","d":"2026-02-06"},{"t":7,"s":"Microbiology","n":"Enterobacteriaceae 1","d":"2026-02-10"},{"t":7,"s":"Microbiology","n":"Enterobacteriaceae 2","d":"2026-02-11"},{"t":7,"s":"Microbiology","n":"Other Gram negative bacilli","d":"2026-02-12"},{"t":7,"s":"Microbiology","n":"Introduction to mycology","d":"2026-02-24"},{"t":7,"s":"Microbiology","n":"Superficial mycoses","d":"2026-02-26"},{"t":7,"s":"Microbiology","n":"Candida infections","d":"2026-03-03"},{"t":7,"s":"Microbiology","n":"Systemic mycoses 1","d":"2026-03-04"},{"t":7,"s":"Microbiology","n":"Systemic mycoses 2","d":"2026-03-05"},{"t":7,"s":"Microbiology","n":"Antifungal agents","d":"2026-03-05"},{"t":7,"s":"Microbiology","n":"Tutorial: Bacteriology","d":"2026-02-25"},{"t":7,"s":"Microbiology","n":"Practical: Demonstration of specimen collection","d":"2026-03-09"},{"t":7,"s":"Microbiology","n":"Tutorial/practical: Mycology","d":"2026-04-20"},{"t":7,"s":"Microbiology","n":"Introduction and general properties of viruses","d":"2026-04-22"},{"t":7,"s":"Microbiology","n":"Viral diagnosis","d":"2026-04-24"},{"t":7,"s":"Microbiology","n":"Picornaviruses","d":"2026-04-27"},{"t":7,"s":"Microbiology","n":"Rabies 1","d":"2026-04-28"},{"t":7,"s":"Microbiology","n":"Practical: Virological diagnosis, collection & transport of specimens","d":"2026-04-28"},{"t":7,"s":"Microbiology","n":"Rabies 2","d":"2026-05-07"},{"t":7,"s":"Microbiology","n":"Collection and transport of specimens","d":"2026-05-08"},{"t":7,"s":"Microbiology","n":"CNS infections","d":"2026-05-11"},{"t":7,"s":"Microbiology","n":"Meningitis","d":"2026-05-12"},{"t":7,"s":"Microbiology","n":"UTIs","d":"2026-05-12"},{"t":7,"s":"Microbiology","n":"Practical: Identification of pathogens in the laboratory","d":"2026-05-19"},{"t":7,"s":"Microbiology","n":"Practical: Urine collection, transport & storage for culture","d":"2026-05-13"},{"t":7,"s":"Microbiology","n":"Practical: Lumbar puncture, CSF collection, storage & transport","d":"2026-05-22"},{"t":7,"s":"Microbiology","n":"Tutorial: Clinical microbiology","d":"2026-05-22"},{"t":7,"s":"Pathology","n":"Glomerulonephritis","d":"2026-02-09"},{"t":7,"s":"Pathology","n":"Cystitis 1","d":"2026-02-10"},{"t":7,"s":"Pathology","n":"Cystitis 2","d":"2026-02-13"},{"t":7,"s":"Pathology","n":"Nephrotic syndrome & nephritic syndrome","d":"2026-02-24"},{"t":7,"s":"Pathology","n":"Tubulointerstitial disease","d":"2026-02-25"},{"t":7,"s":"Pathology","n":"Renal failure","d":"2026-02-27"},{"t":7,"s":"Pathology","n":"Cystic diseases","d":"2026-03-03"},{"t":7,"s":"Pathology","n":"Penile conditions","d":"2026-03-06"},{"t":7,"s":"Pathology","n":"Kidney in systemic diseases","d":"2026-03-09"},{"t":7,"s":"Pathology","n":"Prostate: nodular hyperplasia and carcinoma","d":"2026-03-10"},{"t":7,"s":"Pathology","n":"Introduction to Clinical Pathology","d":"2026-04-21"},{"t":7,"s":"Pathology","n":"Biological rhythms","d":"2026-04-22"},{"t":7,"s":"Pathology","n":"Collection, storage and transport of specimens","d":"2026-04-28"},{"t":7,"s":"Pathology","n":"Identification of laboratory errors","d":"2026-04-29"},{"t":7,"s":"Pathology","n":"Interpreting laboratory reports","d":"2026-05-05"},{"t":7,"s":"Pathology","n":"Renal function tests","d":"2026-05-11"},{"t":7,"s":"Pathology","n":"Acid-base, water and electrolyte balance","d":"2026-05-13"},{"t":7,"s":"Pathology","n":"Tutorial: Urinary system","d":"2026-04-22"},{"t":7,"s":"Pathology","n":"Museum demonstration: Urinary system macroscopy","d":"2026-04-23"},{"t":7,"s":"Pathology","n":"Tutorial: Male genital system","d":"2026-04-28"},{"t":7,"s":"Pathology","n":"Museum demonstration: Male genital system","d":"2026-04-29"},{"t":7,"s":"Pathology","n":"Tutorial: Specimen collection","d":"2026-05-13"},{"t":7,"s":"Pathology","n":"Practical: Urinary system and male genital system","d":"2026-05-05"},{"t":7,"s":"Pathology","n":"CPC: Urinary system combined with MGS","d":"2026-05-25"},{"t":7,"s":"Surgery","n":"Introduction to radiology","d":"2026-02-09"},{"t":7,"s":"Surgery","n":"Urolithiasis","d":"2026-02-23"},{"t":7,"s":"Surgery","n":"UTI","d":"2026-03-09"},{"t":7,"s":"Surgery","n":"Penile conditions","d":"2026-04-20"},{"t":7,"s":"Surgery","n":"Problems of the testis","d":"2026-04-27"},{"t":7,"s":"Surgery","n":"Congenital abnormalities","d":"2026-05-04"},{"t":7,"s":"Surgery","n":"Assessment and monitoring","d":"2026-05-07"},{"t":7,"s":"Surgery","n":"Interpretation of common radiological investigations","d":"2026-05-18"},{"t":7,"s":"Parasitology","n":"Introduction to helminthology","d":"2026-02-10"},{"t":7,"s":"Parasitology","n":"Hook worm infection","d":"2026-02-11"},{"t":7,"s":"Parasitology","n":"Larva migrans","d":"2026-02-23"},{"t":7,"s":"Parasitology","n":"Strongyloides stercoralis","d":"2026-02-26"},{"t":7,"s":"Parasitology","n":"Trichuris trichiura","d":"2026-03-03"},{"t":7,"s":"Parasitology","n":"Trichinella spiralis","d":"2026-03-04"},{"t":7,"s":"Parasitology","n":"Enterobius vermicularis","d":"2026-03-06"},{"t":7,"s":"Parasitology","n":"Tutorial: Soil transmitted helminths","d":"2026-03-09"},{"t":7,"s":"Parasitology","n":"Demonstration: Diagnosis of Enterobius vermicularis","d":"2026-04-22"},{"t":7,"s":"Parasitology","n":"Tutorial: Trichinellosis and enterobiasis","d":"2026-04-28"},{"t":7,"s":"Parasitology","n":"Lymphatic filariasis","d":"2026-05-05"},{"t":7,"s":"Parasitology","n":"Clinical manifestations of filarial disease","d":"2026-05-12"},{"t":7,"s":"Parasitology","n":"Occult filariasis and laboratory diagnosis","d":"2026-05-15"},{"t":7,"s":"Parasitology","n":"Management and control of lymphatic filariasis","d":"2026-05-20"},{"t":7,"s":"Parasitology","n":"Subcutaneous filariasis","d":"2026-05-21"},{"t":7,"s":"CPT","n":"Antifungal agents","d":"2026-02-11"},{"t":7,"s":"CPT","n":"Tutorial: Antimicrobial agents","d":"2026-02-25"},{"t":7,"s":"CPT","n":"Antimicrobial quiz","d":"2026-02-27"},{"t":7,"s":"CPT","n":"Cholinomimetics","d":"2026-03-05"},{"t":7,"s":"CPT","n":"Anticholinergics","d":"2026-03-11"},{"t":7,"s":"CPT","n":"Sympathomimetics","d":"2026-04-21"},{"t":7,"s":"CPT","n":"Sympatholytics","d":"2026-04-27"},{"t":7,"s":"CPT","n":"Drugs acting on RAS","d":"2026-05-07"},{"t":7,"s":"CPT","n":"Diuretics","d":"2026-05-08"},{"t":7,"s":"CPT","n":"UTI drug treatment","d":"2026-05-14"},{"t":7,"s":"CPT","n":"ANS quiz","d":"2026-05-12"},{"t":7,"s":"CPT","n":"Drug used in coagulation","d":"2026-05-19"},{"t":7,"s":"Paediatrics","n":"Normal newborn care","d":"2026-02-12"},{"t":7,"s":"Paediatrics","n":"Baby of a diabetic mother","d":"2026-02-26"},{"t":7,"s":"Paediatrics","n":"Prematurity & LBW","d":"2026-03-05"},{"t":7,"s":"Paediatrics","n":"Neonatal seizures","d":"2026-04-23"},{"t":7,"s":"Paediatrics","n":"Neonatal sepsis","d":"2026-04-30"},{"t":7,"s":"Paediatrics","n":"Acute renal failure","d":"2026-05-06"},{"t":7,"s":"Paediatrics","n":"Birth asphyxia","d":"2026-05-07"},{"t":7,"s":"Paediatrics","n":"Chronic renal failure","d":"2026-05-13"},{"t":7,"s":"Paediatrics","n":"UTI in children","d":"2026-05-20"},{"t":7,"s":"Paediatrics","n":"Proteinuria/haematuria","d":"2026-05-27"},{"t":7,"s":"DCFM","n":"Nutrition 5","d":"2026-02-09"},{"t":7,"s":"DCFM","n":"Nutrition 6","d":"2026-02-12"},{"t":7,"s":"DCFM","n":"Tutorial 4: Nutrition","d":"2026-02-24"},{"t":7,"s":"DCFM","n":"Research methods 10","d":"2026-03-03"},{"t":7,"s":"DCFM","n":"Statistics 1","d":"2026-04-20"},{"t":7,"s":"DCFM","n":"Statistics 2","d":"2026-04-29"},{"t":7,"s":"DCFM","n":"Statistics 3","d":"2026-04-29"},{"t":7,"s":"DCFM","n":"Statistics 5","d":"2026-05-04"},{"t":7,"s":"DCFM","n":"Statistics 4","d":"2026-05-06"},{"t":7,"s":"DCFM","n":"Statistics 6","d":"2026-05-11"},{"t":7,"s":"DCFM","n":"Basic epidemiology 8","d":"2026-05-14"},{"t":7,"s":"DCFM","n":"Basic epidemiology 9","d":"2026-05-18"},{"t":7,"s":"DCFM","n":"Tutorial 5: Research methods","d":"2026-05-26"},{"t":7,"s":"Chemical Pathology","n":"Practical: CSF analysis","d":"2026-05-19"},{"t":7,"s":"Chemical Pathology","n":"Practical session","d":"2026-05-22"},{"t":8,"s":"Microbiology","n":"Mumps, measles & rubella viruses","d":"2026-06-01"},{"t":8,"s":"Microbiology","n":"Arboviruses (JE, Chikungunya)","d":"2026-06-02"},{"t":8,"s":"Microbiology","n":"Dengue","d":"2026-06-03"},{"t":8,"s":"Microbiology","n":"Herpesviruses (HSV, CMV, EBV, HHV)","d":"2026-06-08"},{"t":8,"s":"Microbiology","n":"VZV","d":"2026-06-09"},{"t":8,"s":"Microbiology","n":"Respiratory viruses","d":"2026-06-11"},{"t":8,"s":"Microbiology","n":"Tutorial: Mumps, measles & rubella","d":"2026-06-16"},{"t":8,"s":"Microbiology","n":"Tutorial: VZV","d":"2026-06-16"},{"t":8,"s":"Microbiology","n":"Respiratory infections 1","d":"2026-06-17"},{"t":8,"s":"Microbiology","n":"Respiratory infections 2","d":"2026-06-19"},{"t":8,"s":"Microbiology","n":"Influenza","d":"2026-06-22"},{"t":8,"s":"Microbiology","n":"Pox, Parvo, Papilloma, Polyoma and Adeno viruses","d":"2026-06-22"},{"t":8,"s":"Microbiology","n":"Demonstration: Collection of respiratory specimens, transport and storage","d":"2026-06-23"},{"t":8,"s":"Microbiology","n":"Pneumonia & lung abscess","d":"2026-06-30"},{"t":8,"s":"Microbiology","n":"STDs & reproductive tract infections","d":"2026-07-07"},{"t":8,"s":"Microbiology","n":"Infections in pregnancy, foetus & neonates","d":"2026-07-03"},{"t":8,"s":"Microbiology","n":"Rheumatic fever","d":"2026-07-30"},{"t":8,"s":"Microbiology","n":"Infective endocarditis 1","d":"2026-08-03"},{"t":8,"s":"Microbiology","n":"Infective endocarditis 2","d":"2026-08-04"},{"t":8,"s":"Microbiology","n":"Demonstration: Collection of blood, storage & transport","d":"2026-08-05"},{"t":8,"s":"Microbiology","n":"Sepsis","d":"2026-08-06"},{"t":8,"s":"Microbiology","n":"Tutorial: Clinical microbiology","d":"2026-08-10"},{"t":8,"s":"Microbiology","n":"Leprosy","d":"2026-08-12"},{"t":8,"s":"Microbiology","n":"Typhus","d":"2026-08-14"},{"t":8,"s":"Microbiology","n":"Practical: Tuberculosis diagnosis","d":"2026-06-02"},{"t":8,"s":"Pathology","n":"Chronic bronchitis and emphysema","d":"2026-06-01"},{"t":8,"s":"Pathology","n":"Asthma, bronchiectasis","d":"2026-06-08"},{"t":8,"s":"Pathology","n":"Lung neoplasm","d":"2026-06-08"},{"t":8,"s":"Pathology","n":"Pleura and mediastinal neoplasm","d":"2026-06-09"},{"t":8,"s":"Pathology","n":"CPC: Urinary system combined with MGS","d":"2026-06-05"},{"t":8,"s":"Pathology","n":"Lung infections","d":"2026-06-15"},{"t":8,"s":"Pathology","n":"Upper respiratory tract","d":"2026-06-19"},{"t":8,"s":"Pathology","n":"Tutorial: Respiratory system","d":"2026-06-23"},{"t":8,"s":"Pathology","n":"Museum demonstration: Respiratory system","d":"2026-06-24"},{"t":8,"s":"Pathology","n":"CPC: Respiratory system","d":"2026-07-01"},{"t":8,"s":"Pathology","n":"Practical: Respiratory system (histopathology)","d":"2026-07-02"},{"t":8,"s":"Pathology","n":"Atherosclerosis: pathogenesis","d":"2026-06-30"},{"t":8,"s":"Pathology","n":"Vasculitides and diseases of veins and lymphatics","d":"2026-07-02"},{"t":8,"s":"Pathology","n":"Ischaemic heart disease","d":"2026-07-06"},{"t":8,"s":"Pathology","n":"Left and right heart failure / Cor-pulmonale","d":"2026-07-06"},{"t":8,"s":"Pathology","n":"Atherosclerosis: peripheral vascular disease, cerebrovascular disease, aneurysms","d":"2026-07-07"},{"t":8,"s":"Pathology","n":"Myocardial diseases","d":"2026-07-07"},{"t":8,"s":"Pathology","n":"Diseases of the pericardium","d":"2026-07-09"},{"t":8,"s":"Pathology","n":"Valvular heart disease","d":"2026-07-30"},{"t":8,"s":"Pathology","n":"CPC: Cardiovascular system","d":"2026-08-04"},{"t":8,"s":"Pathology","n":"Tutorial: Cardiovascular system","d":"2026-08-10"},{"t":8,"s":"Pathology","n":"Museum demonstration: Cardiovascular system","d":"2026-08-17"},{"t":8,"s":"Pathology","n":"Practical: Cardiovascular system (histopathology)","d":"2026-08-18"},{"t":8,"s":"Surgery","n":"Chronic limb ischemia (PVD)","d":"2026-06-03"},{"t":8,"s":"Surgery","n":"Acute limb ischemia & compartment syndrome","d":"2026-06-10"},{"t":8,"s":"Surgery","n":"Vascular trauma","d":"2026-06-17"},{"t":8,"s":"Surgery","n":"Unilateral leg swelling, DVT & lymphoedema","d":"2026-06-24"},{"t":8,"s":"Surgery","n":"Paediatric surgical conditions I (GIT)","d":"2026-07-03"},{"t":8,"s":"Surgery","n":"Vascular malformations & aortic aneurysms","d":"2026-07-28"},{"t":8,"s":"Surgery","n":"Common ENT problems","d":"2026-08-06"},{"t":8,"s":"Surgery","n":"Upper airway obstruction and tracheostomy","d":"2026-08-13"},{"t":8,"s":"Surgery","n":"Paediatric surgical conditions II (GUT)","d":"2026-08-14"},{"t":8,"s":"Surgery","n":"Principle of tissue transplantation","d":"2026-08-19"},{"t":8,"s":"Parasitology","n":"Cestode: Taenia solium / Taenia saginata","d":"2026-06-02"},{"t":8,"s":"Parasitology","n":"Cestode: Bertiella","d":"2026-06-04"},{"t":8,"s":"Parasitology","n":"Larval cestode","d":"2026-06-10"},{"t":8,"s":"Parasitology","n":"Trematodes (Schistosomiasis)","d":"2026-06-11"},{"t":8,"s":"Parasitology","n":"Demonstration/tutorial: Cestode & trematodes","d":"2026-06-16"},{"t":8,"s":"Parasitology","n":"Introduction to important snakes","d":"2026-06-26"},{"t":8,"s":"Parasitology","n":"Important snakes: Elapids","d":"2026-06-30"},{"t":8,"s":"Parasitology","n":"Important snakes: RV/SSV","d":"2026-07-03"},{"t":8,"s":"Parasitology","n":"Important snakes: HNV/GPV","d":"2026-07-08"},{"t":8,"s":"Parasitology","n":"Cobra and krait envenomation","d":"2026-07-10"},{"t":8,"s":"Parasitology","n":"Snakes identification practical","d":"2026-07-27"},{"t":8,"s":"Parasitology","n":"Viper envenomation","d":"2026-07-28"},{"t":8,"s":"Parasitology","n":"Snakebite management","d":"2026-08-03"},{"t":8,"s":"CPT","n":"Antihypertensive agents","d":"2026-06-03"},{"t":8,"s":"CPT","n":"Antianginal agents","d":"2026-06-04"},{"t":8,"s":"CPT","n":"Drugs used in heart failure","d":"2026-06-12"},{"t":8,"s":"CPT","n":"Antiarrhythmic agents","d":"2026-06-15"},{"t":8,"s":"CPT","n":"Lipid lowering agents","d":"2026-06-18"},{"t":8,"s":"CPT","n":"Coronary artery diseases and myocardial infarction","d":"2026-06-30"},{"t":8,"s":"CPT","n":"Antitussives and antihistamines","d":"2026-07-01"},{"t":8,"s":"CPT","n":"Drugs used in asthma","d":"2026-07-06"},{"t":8,"s":"CPT","n":"Endocarditis","d":"2026-07-10"},{"t":8,"s":"CPT","n":"Demonstration: Drug delivery in asthma","d":"2026-07-27"},{"t":8,"s":"CPT","n":"Hypertension: cardiac, cerebral, renal and ocular disease","d":"2026-07-28"},{"t":8,"s":"CPT","n":"Hypertensive emergencies","d":"2026-08-04"},{"t":8,"s":"CPT","n":"Pneumonia and lung abscess","d":"2026-08-07"},{"t":8,"s":"CPT","n":"Antiviral agents","d":"2026-08-10"},{"t":8,"s":"CPT","n":"Acute and chronic heart failure","d":"2026-08-11"},{"t":8,"s":"CPT","n":"Arrhythmias","d":"2026-08-14"},{"t":8,"s":"CPT","n":"Asthma","d":"2026-08-14"},{"t":8,"s":"CPT","n":"Antihelminthic agents","d":"2026-08-19"},{"t":8,"s":"CPT","n":"Treatment of scabies and head & body lice","d":"2026-08-21"},{"t":8,"s":"CPT","n":"Chronic obstructive pulmonary disease","d":"2026-08-21"},{"t":8,"s":"Paediatrics","n":"Acyanotic heart diseases","d":"2026-06-01"},{"t":8,"s":"Paediatrics","n":"Cyanotic heart disease","d":"2026-06-12"},{"t":8,"s":"Paediatrics","n":"Rheumatic fever, Kawasaki disease","d":"2026-06-16"},{"t":8,"s":"Paediatrics","n":"Wheezing in a child","d":"2026-06-24"},{"t":8,"s":"Paediatrics","n":"Stridor in a child","d":"2026-07-01"},{"t":8,"s":"Paediatrics","n":"Respiratory infection","d":"2026-07-09"},{"t":8,"s":"Paediatrics","n":"Bronchial asthma","d":"2026-08-12"},{"t":8,"s":"DCFM","n":"Tutorial 5: Research methods","d":"2026-06-05"},{"t":8,"s":"DCFM","n":"Tutorial 6: Statistics and basic epidemiology","d":"2026-06-09"},{"t":8,"s":"DCFM","n":"Family medicine 1: Principles of family practice","d":"2026-06-11"},{"t":8,"s":"DCFM","n":"Family medicine 2: Health problems related to stages in family life cycle","d":"2026-06-25"},{"t":8,"s":"DCFM","n":"Family medicine 3: Doctor-patient relationship & process of consultation","d":"2026-07-01"},{"t":8,"s":"DCFM","n":"Family medicine 4: Patient management, prescribing, compliance","d":"2026-07-08"},{"t":8,"s":"DCFM","n":"Family medicine 5: Medical records in family practice","d":"2026-07-31"},{"t":8,"s":"DCFM","n":"Family medicine 6: Caring for an ill person","d":"2026-08-11"},{"t":8,"s":"DCFM","n":"Family medicine 7: Management of the terminally ill patient, death etc","d":"2026-08-13"},{"t":8,"s":"DCFM","n":"Family medicine 8: Organisation of a family practice","d":"2026-08-20"},{"t":8,"s":"MDS","n":"Tuberculosis (multidisciplinary seminar)","d":"2026-06-12"}];
+
+const INTERVALS = [1,3,7,14,30,60];
+const STORAGE_KEY = 'sr-tracker-v1';
+
+let progress = {};
+let customTopics = [];
+let allTopics = [];
+
+let filters = { term:'all', status:'all', subject:'all', q:'' };
+let manualSubjectState = {};
+
+/* ---------- date helpers ---------- */
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function addDays(dateStr, n){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate()+n);
+  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+}
+function daysBetween(fromStr, toStr){
+  const [y1,m1,d1] = fromStr.split('-').map(Number);
+  const [y2,m2,d2] = toStr.split('-').map(Number);
+  const a = new Date(y1,m1-1,d1), b = new Date(y2,m2-1,d2);
+  return Math.round((b-a)/86400000);
+}
+function formatDate(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return dt.toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
+}
+function formatDateShort(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return dt.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+}
+
+/* ---------- localStorage (iPhone persistent storage) ---------- */
+function loadFromStorage(){
+  try{
+    const json = localStorage.getItem(STORAGE_KEY);
+    if (json){
+      const parsed = JSON.parse(json);
+      progress = parsed.progress || {};
+      customTopics = parsed.customTopics || [];
+    }
+  }catch(e){
+    console.error('Storage load error:', e);
+  }
+}
+function saveToStorage(){
+  try{
+    const payload = JSON.stringify({progress, customTopics});
+    localStorage.setItem(STORAGE_KEY, payload);
+  }catch(e){
+    console.error('Storage save error:', e);
+    alert('Storage full — clear some space on your phone or reset progress.');
+  }
+}
+
+/* ---------- data assembly ---------- */
+function buildTopics(){
+  const base = RAW_TOPICS.map((d,i)=>({id:'d'+i, t:d.t, s:d.s, n:d.n, d:d.d, custom:false}));
+  allTopics = base.concat(customTopics.map(c=>({...c, custom:true})));
+}
+
+function getStatus(topic){
+  const p = progress[topic.id];
+  const today = todayStr();
+  if (!p) return {status:'new'};
+  if (p.mastered) return {status:'mastered', stage:p.stage};
+  const diff = daysBetween(today, p.nextReview);
+  if (diff <= 0) return {status:'due', stage:p.stage, overdue: -diff};
+  return {status:'upcoming', stage:p.stage, daysUntil: diff};
+}
+
+/* ---------- actions ---------- */
+function markStudied(id){
+  const today = todayStr();
+  progress[id] = {stage:0, nextReview: addDays(today, INTERVALS[0]), mastered:false, history:[{date:today,type:'study'}]};
+  saveToStorage();
+  afterAction(id);
+}
+function markReviewed(id){
+  const p = progress[id]; if(!p) return;
+  const today = todayStr();
+  const newStage = p.stage+1;
+  if (newStage >= INTERVALS.length){ p.mastered = true; p.stage = INTERVALS.length; }
+  else { p.stage = newStage; p.nextReview = addDays(today, INTERVALS[newStage]); }
+  p.history.push({date:today, type:'review'});
+  saveToStorage();
+  afterAction(id);
+}
+function markForgot(id){
+  const p = progress[id]; if(!p) return;
+  const today = todayStr();
+  p.stage = 0; p.mastered = false; p.nextReview = addDays(today, INTERVALS[0]);
+  p.history.push({date:today, type:'forgot'});
+  saveToStorage();
+  afterAction(id);
+}
+function undoProgress(id){
+  delete progress[id];
+  saveToStorage();
+  afterAction(id);
+}
+function removeCustomTopic(id){
+  customTopics = customTopics.filter(c=>c.id!==id);
+  delete progress[id];
+  buildTopics();
+  saveToStorage();
+  renderList();
+  renderStats();
+  populateSubjectFilter();
+}
+
+function afterAction(id){
+  updateRowInPlace(id);
+  renderStats();
+}
+
+/* ---------- filtering ---------- */
+function matchesFilters(topic){
+  if (filters.term!=='all' && String(topic.t)!==filters.term) return false;
+  if (filters.subject!=='all' && topic.s!==filters.subject) return false;
+  if (filters.status!=='all' && getStatus(topic).status!==filters.status) return false;
+  if (filters.q){
+    const q = filters.q.toLowerCase();
+    if (!topic.n.toLowerCase().includes(q) && !topic.s.toLowerCase().includes(q)) return false;
+  }
+  return true;
+}
+function hasActiveFilter(){
+  return filters.term!=='all' || filters.status!=='all' || filters.subject!=='all' || filters.q.trim()!=='';
+}
+
+/* ---------- row rendering ---------- */
+function badgeAndActions(topic){
+  const st = getStatus(topic);
+  let badge='', actions='';
+  if (st.status==='new'){
+    badge = '<span class="badge badge-new">New</span>';
+    actions = '<button class="btn-sm study" data-action="study" data-id="'+topic.id+'">Mark studied</button>';
+  } else if (st.status==='due'){
+    const label = st.overdue<=0 ? 'Due today' : ('Overdue '+st.overdue+'d');
+    badge = '<span class="badge badge-due">'+label+' · ckpt '+(st.stage+1)+'/6</span>';
+    actions = '<button class="btn-sm review" data-action="review" data-id="'+topic.id+'">Reviewed</button>'
+            + '<button class="btn-sm forgot" data-action="forgot" data-id="'+topic.id+'">Forgot</button>';
+  } else if (st.status==='upcoming'){
+    badge = '<span class="badge badge-upcoming">In '+st.daysUntil+'d · ckpt '+(st.stage+1)+'/6</span>';
+    actions = '<button class="link-action" data-action="review" data-id="'+topic.id+'">Review early</button>'
+            + '<button class="link-action" data-action="undo" data-id="'+topic.id+'">Undo</button>';
+  } else {
+    badge = '<span class="badge badge-mastered">Mastered ✓</span>';
+    actions = '<button class="link-action" data-action="undo" data-id="'+topic.id+'">Reset</button>';
+  }
+  if (topic.custom){
+    actions += '<button class="link-action remove" data-action="remove" data-id="'+topic.id+'">Remove</button>';
+  }
+  return {badge, actions};
+}
+
+function rowHTML(topic){
+  const {badge, actions} = badgeAndActions(topic);
+  const p = progress[topic.id];
+  let meta = 'Taught '+formatDateShort(topic.d);
+  if (p && p.history && p.history.length){
+    meta += ' · last touched '+formatDateShort(p.history[p.history.length-1].date);
+  }
+  return '<div class="topic-row" data-row-id="'+topic.id+'">'
+    +   '<div class="topic-main">'
+    +     '<span class="topic-name">'+escapeHTML(topic.n)+'</span>'
+    +     '<span class="topic-meta">'+meta+'</span>'
+    +   '</div>'
+    +   '<div class="topic-status">'+badge+'<div class="topic-actions">'+actions+'</div></div>'
+    + '</div>';
+}
+function escapeHTML(s){
+  return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function updateRowInPlace(id){
+  const el = document.querySelector('.topic-row[data-row-id="'+id+'"]');
+  if (!el) return;
+  const topic = allTopics.find(t=>t.id===id);
+  if (!topic) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = rowHTML(topic);
+  el.replaceWith(tmp.firstElementChild);
+}
+
+/* ---------- stats ---------- */
+function renderStats(){
+  let due=0,neu=0,up=0,mast=0,studiedTotal=0;
+  allTopics.forEach(t=>{
+    const st=getStatus(t);
+    if (st.status==='due') due++;
+    else if (st.status==='new') neu++;
+    else if (st.status==='upcoming') up++;
+    else if (st.status==='mastered') mast++;
+    if (st.status!=='new') studiedTotal++;
+  });
+  document.getElementById('statDue').textContent = due;
+  document.getElementById('statNew').textContent = neu;
+  document.getElementById('statUpcoming').textContent = up;
+  document.getElementById('statMastered').textContent = mast;
+  const total = allTopics.length;
+  const pct = total ? Math.round((studiedTotal/total)*100) : 0;
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressLabel').textContent = studiedTotal+' / '+total+' studied ('+pct+'%)';
+
+  document.querySelectorAll('.vital[data-status]').forEach(v=>{
+    v.classList.toggle('active', filters.status===v.dataset.status);
+  });
+}
+
+/* ---------- list rendering ---------- */
+function overallCounts(list){
+  let studied=0; list.forEach(t=>{ if (getStatus(t).status!=='new') studied++; });
+  return {studied, total:list.length};
+}
+
+function renderList(){
+  const listEl = document.getElementById('list');
+  const filtered = allTopics.filter(matchesFilters);
+
+  if (filtered.length===0){
+    listEl.innerHTML = '<div class="empty-state">No topics match these filters. Try clearing the search or picking a different term.</div>';
+    return;
+  }
+
+  const activeFilter = hasActiveFilter();
+  const terms = [...new Set(filtered.map(t=>t.t))].sort((a,b)=>a-b);
+
+  let html = '';
+  terms.forEach(termNum=>{
+    const termFiltered = filtered.filter(t=>t.t===termNum);
+    const termAll = allTopics.filter(t=>t.t===termNum);
+    const {studied, total} = overallCounts(termAll);
+    const dates = termAll.map(t=>t.d).sort();
+    const range = dates.length ? formatDateShort(dates[0])+' – '+formatDateShort(dates[dates.length-1]) : '';
+    const shownNote = (activeFilter && termFiltered.length!==termAll.length)
+      ? '<span class="shown-note">'+termFiltered.length+' shown</span>' : '';
+
+    const subjects = [...new Set(termFiltered.map(t=>t.s))].sort((a,b)=>a.localeCompare(b));
+
+    let subjHtml = '';
+    subjects.forEach(subj=>{
+      const subjFiltered = termFiltered.filter(t=>t.s===subj).sort((a,b)=>a.d.localeCompare(b.d));
+      const subjAll = termAll.filter(t=>t.s===subj);
+      const sc = overallCounts(subjAll);
+      const key = 'term-'+termNum+'-'+subj;
+      const defaultOpen = activeFilter;
+      const isOpen = (key in manualSubjectState) ? manualSubjectState[key] : defaultOpen;
+      const subjShownNote = (activeFilter && subjFiltered.length!==subjAll.length)
+        ? '<span class="shown-note">'+subjFiltered.length+' shown</span>' : '';
+
+      subjHtml += '<details class="subject-section" data-key="'+key+'"'+(isOpen?' open':'')+'>'
+        + '<summary>'
+        +   '<span class="summary-left"><span class="chevron">▸</span><span class="subject-title">'+escapeHTML(subj)+'</span></span>'
+        +   '<span class="summary-right"><span class="subject-progress">'+sc.studied+'/'+sc.total+'</span>'+subjShownNote+'</span>'
+        + '</summary>'
+        + '<div class="subject-body">'
+        +   subjFiltered.map(rowHTML).join('')
+        + '</div></details>';
+    });
+
+    html += '<details class="term-section term-'+termNum+'" open>'
+      + '<summary>'
+      +   '<span class="summary-left"><span class="chevron">▸</span><span class="term-title">Term '+termNum+'</span></span>'
+      +   '<span class="summary-right"><span class="term-range">'+range+'</span><span class="term-progress">'+studied+'/'+total+'</span>'+shownNote+'</span>'
+      + '</summary>'
+      + '<div class="term-body">'+subjHtml+'</div>'
+      + '</details>';
+  });
+
+  listEl.innerHTML = html;
+
+  listEl.querySelectorAll('details.subject-section').forEach(d=>{
+    d.addEventListener('toggle', ()=>{ manualSubjectState[d.dataset.key] = d.open; });
+  });
+}
+
+/* ---------- filters UI ---------- */
+function populateSubjectFilter(){
+  const subjects = [...new Set(allTopics.map(t=>t.s))].sort((a,b)=>a.localeCompare(b));
+  const sel = document.getElementById('subjectFilter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">All subjects</option>' + subjects.map(s=>'<option value="'+escapeHTML(s)+'">'+escapeHTML(s)+'</option>').join('');
+  sel.value = subjects.includes(current) ? current : 'all';
+
+  const dl = document.getElementById('subjectList');
+  dl.innerHTML = subjects.map(s=>'<option value="'+escapeHTML(s)+'">').join('');
+}
+
+/* ---------- events ---------- */
+function bindEvents(){
+  document.getElementById('list').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id, action = btn.dataset.action;
+    if (action==='study') markStudied(id);
+    else if (action==='review') markReviewed(id);
+    else if (action==='forgot') markForgot(id);
+    else if (action==='undo') undoProgress(id);
+    else if (action==='remove') removeCustomTopic(id);
+  });
+
+  document.querySelectorAll('.vital[data-status]').forEach(v=>{
+    v.addEventListener('click', ()=>{
+      filters.status = (filters.status===v.dataset.status) ? 'all' : v.dataset.status;
+      renderStats(); renderList();
+    });
+  });
+
+  document.getElementById('termFilters').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.pill'); if (!btn) return;
+    filters.term = btn.dataset.term;
+    document.querySelectorAll('#termFilters .pill').forEach(p=>p.classList.toggle('active', p===btn));
+    renderList();
+  });
+
+  document.getElementById('subjectFilter').addEventListener('change', (e)=>{
+    filters.subject = e.target.value; renderList();
+  });
+
+  let searchTimer;
+  document.getElementById('searchBox').addEventListener('input', (e)=>{
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(()=>{ filters.q = e.target.value; renderList(); }, 150);
+  });
+
+  document.getElementById('toggleAddForm').addEventListener('click', ()=>{
+    document.getElementById('addForm').classList.toggle('hidden');
+  });
+  document.getElementById('cancelAdd').addEventListener('click', ()=>{
+    document.getElementById('addForm').classList.add('hidden');
+    document.getElementById('formError').classList.remove('show');
+  });
+  document.getElementById('saveTopic').addEventListener('click', ()=>{
+    const term = document.getElementById('newTerm').value;
+    const subject = document.getElementById('newSubject').value.trim();
+    const name = document.getElementById('newTopicName').value.trim();
+    const date = document.getElementById('newDate').value;
+    if (!subject || !name || !date){
+      document.getElementById('formError').classList.add('show');
+      return;
+    }
+    document.getElementById('formError').classList.remove('show');
+    const id = 'c'+Date.now()+Math.floor(Math.random()*1000);
+    customTopics.push({id, t:Number(term), s:subject, n:name, d:date});
+    buildTopics();
+    saveToStorage();
+    populateSubjectFilter();
+    renderList(); renderStats();
+    document.getElementById('newSubject').value='';
+    document.getElementById('newTopicName').value='';
+    document.getElementById('addForm').classList.add('hidden');
+  });
+
+  document.getElementById('resetAll').addEventListener('click', ()=>{
+    if (confirm("This clears every mark and review date. It can't be undone. Continue?")){
+      progress = {}; customTopics = [];
+      buildTopics();
+      saveToStorage();
+      populateSubjectFilter();
+      renderList(); renderStats();
+    }
+  });
+}
+
+/* ---------- init ---------- */
+function init(){
+  loadFromStorage();
+  buildTopics();
+  populateSubjectFilter();
+  bindEvents();
+  renderList();
+  renderStats();
+  document.getElementById('todayDisplay').textContent = formatDate(todayStr());
+  document.getElementById('newDate').value = todayStr();
+}
+init();
+
+})();
+</script>
+</body>
+</html>
